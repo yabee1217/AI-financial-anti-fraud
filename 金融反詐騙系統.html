@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>金融反詐騙系統</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.js"></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #00a3e0 0%, #4CAF50 50%, #7152a1 100%);
+        }
+        .glass {
+            background: rgba(255, 255, 255, 0.25);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+        }
+        .page {
+            display: none;
+        }
+        .page.active {
+            display: block;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+    <div class="glass p-8 w-full max-w-4xl">
+        <h1 class="text-4xl font-bold text-white mb-6 text-center">金融反詐騙系統</h1>
+        <p class="text-white text-center mb-4">組員：陳姿穎、黃澄軒、葉政浩</p>
+        
+        <nav class="mb-6">
+            <ul class="flex justify-center space-x-4">
+                <li><a href="#home" class="text-white hover:underline">首頁</a></li>
+                <li><a href="#keywords" class="text-white hover:underline">關鍵字管理</a></li>
+                <li><a href="#feedback" class="text-white hover:underline">意見反饋</a></li>
+            </ul>
+        </nav>
+
+        <div id="home" class="page active">
+            <h2 class="text-2xl font-semibold text-white mb-2">詐騙檢測</h2>
+            <div class="bg-white p-4 rounded">
+                <textarea id="userInput" class="w-full p-2 border rounded" rows="4" placeholder="請輸入可疑訊息..."></textarea>
+                <button onclick="detectFraud()" class="mt-2 bg-blue-500 text-white px-4 py-2 rounded">檢測</button>
+                <div id="result" class="mt-2"></div>
+                <div id="suggestion" class="mt-2 p-2 bg-green-100 rounded hidden"></div>
+                <div id="similarCases" class="mt-2 p-2 bg-yellow-100 rounded hidden"></div>
+            </div>
+        </div>
+
+        <div id="keywords" class="page">
+            <h2 class="text-2xl font-semibold text-white mb-2">關鍵字管理</h2>
+            <div class="bg-white p-4 rounded">
+                <div class="mb-4">
+                    <input type="text" id="newKeyword" class="w-full p-2 border rounded" placeholder="輸入新關鍵字">
+                    <select id="keywordCategory" class="mt-2 w-full p-2 border rounded">
+                        <option value="investment">投資詐騙</option>
+                        <option value="onlineShopping">網路購物詐騙</option>
+                        <option value="impersonation">假冒身分詐騙</option>
+                        <option value="lottery">中獎詐騙</option>
+                        <option value="loan">貸款詐騙</option>
+                    </select>
+                    <button onclick="addKeyword()" class="mt-2 bg-green-500 text-white px-4 py-2 rounded">新增關鍵字</button>
+                </div>
+                <div id="keywordLists"></div>
+            </div>
+        </div>
+
+        <div id="feedback" class="page">
+            <h2 class="text-2xl font-semibold text-white mb-2">意見反饋</h2>
+            <div class="bg-white p-4 rounded">
+                <textarea id="feedbackInput" class="w-full p-2 border rounded" rows="4" placeholder="請提供您的反饋..."></textarea>
+                <button onclick="submitFeedback()" class="mt-2 bg-yellow-500 text-white px-4 py-2 rounded">提交反饋</button>
+                <p id="feedbackResult" class="mt-2"></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let fraudKeywords = {
+            investment: [
+                "高回報", "保證獲利", "穩賺不賠", "投資機會", "股票內線", "快速致富",
+                "保證年化報酬XX%", "無風險投資", "私募基金", "期貨交易", "虛擬貨幣投資",
+                "短期暴利", "一夜致富", "7天翻倍",
+                "黃金交易", "外匯投資", "碳權交易"
+            ],
+            onlineShopping: [
+                "限時特價", "秒殺優惠", "錯誤標價", "假冒官網", "盜版商品",
+                "只接受銀行轉帳", "僅限郵局匯款", "不接受貨到付款",
+                "全新未拆封", "原廠平行輸入", "海外代購",
+                "今日最後一天", "數量極少", "限時搶購"
+            ],
+            impersonation: [
+                "冒充公務員", "假冒銀行", "緊急通知", "系統升級", "身分驗證",
+                "稅務局人員", "社福機構", "健保署", "警察局", "檢察官",
+                "帳戶異常", "個資外洩", "違法行為", "欠稅通知",
+                "立即處理", "馬上登入", "盡快回覆"
+            ],
+            lottery: [
+                "中大獎", "海外彩券", "中獎通知", "領獎手續費", "預先付款",
+                "樂透頭獎", "刮刮樂", "發票對獎",
+                "價值百萬", "億元大獎", "豐厚獎金",
+                "保密協議", "公證手續", "稅務處理"
+            ],
+            loan: [
+                "無擔保貸款", "快速放款", "協商債務", "代辦貸款", "信用卡代償",
+                "免信用查核", "無需財力證明", "信用不良可辦",
+                "企業周轉", "資金週轉", "緊急現金",
+                "私人放款", "民間借貸", "小額借款"
+            ]
+        };
+
+        let fraudCases = [
+            {
+                type: "investment",
+                description: "宣稱高報酬率的投資計劃",
+                link: "https://www.npa.gov.tw/ch/app/news/view?module=news&id=2834",
+                keywords: ["高回報", "保證獲利"]
+            },
+            {
+                type: "onlineShopping",
+                description: "假冒知名購物網站騙取個資",
+                link: "https://www.npa.gov.tw/ch/app/news/view?module=news&id=2831",
+                keywords: ["限時特價", "假冒官網"]
+            },
+            {
+                type: "impersonation",
+                description: "假冒檢察官詐騙案件",
+                link: "https://www.npa.gov.tw/ch/app/news/view?module=news&id=2828",
+                keywords: ["冒充公務員", "緊急通知"]
+            },
+            {
+                type: "lottery",
+                description: "假中獎詐騙案件",
+                link: "https://www.npa.gov.tw/ch/app/news/view?module=news&id=2825",
+                keywords: ["中大獎", "領獎手續費"]
+            },
+            {
+                type: "loan",
+                description: "假冒銀行行員詐騙案件",
+                link: "https://www.npa.gov.tw/ch/app/news/view?module=news&id=2822",
+                keywords: ["無擔保貸款", "快速放款"]
+            }
+        ];
+
+        function updateKeywordLists() {
+            const container = document.getElementById('keywordLists');
+            container.innerHTML = '';
+            for (let category in fraudKeywords) {
+                const categoryTitle = document.createElement('h3');
+                categoryTitle.className = 'font-semibold mt-2';
+                categoryTitle.textContent = getCategoryName(category);
+                container.appendChild(categoryTitle);
+
+                const list = document.createElement('ul');
+                list.className = 'list-disc list-inside mb-2';
+                fraudKeywords[category].forEach(keyword => {
+                    const li = document.createElement('li');
+                    li.textContent = keyword;
+                    list.appendChild(li);
+                });
+                container.appendChild(list);
+            }
+        }
+
+        function getCategoryName(category) {
+            const categoryNames = {
+                investment: "投資詐騙",
+                onlineShopping: "網路購物詐騙",
+                impersonation: "假冒身分詐騙",
+                lottery: "中獎詐騙",
+                loan: "貸款詐騙"
+            };
+            return categoryNames[category] || category;
+        }
+
+        function detectFraud() {
+            const input = document.getElementById('userInput').value.toLowerCase();
+            const result = document.getElementById('result');
+            const suggestion = document.getElementById('suggestion');
+            const similarCases = document.getElementById('similarCases');
+            let detectedKeywords = [];
+            let detectedCategories = new Set();
+
+            for (let category in fraudKeywords) {
+                const detected = fraudKeywords[category].filter(keyword => input.includes(keyword.toLowerCase()));
+                if (detected.length > 0) {
+                    detectedKeywords = detectedKeywords.concat(detected);
+                    detectedCategories.add(category);
+                }
+            }
+            
+            if (detectedKeywords.length > 0) {
+                result.innerHTML = `<p class="text-red-500 font-bold">警告：檢測到可疑關鍵詞 ${detectedKeywords.join(', ')}。請小心謹慎！</p>`;
+                suggestion.innerHTML = '建議：請勿輕易相信陌生人的要求，特別是涉及金錢或個人資料的請求。如有疑問，請聯繫官方機構進行核實。';
+                suggestion.classList.remove('hidden');
+
+                // 尋找相似案例
+                let similarCasesHtml = '<h3 class="font-semibold">相似案例：</h3><ul>';
+                fraudCases.forEach(caseItem => {
+                    if (detectedCategories.has(caseItem.type) || caseItem.keywords.some(keyword => detectedKeywords.includes(keyword))) {
+                        similarCasesHtml += `<li><a href="${caseItem.link}" target="_blank" class="text-blue-500 underline">${caseItem.description}</a></li>`;
+                    }
+                });
+                similarCasesHtml += '</ul>';
+                similarCases.innerHTML = similarCasesHtml;
+                similarCases.classList.remove('hidden');
+            } else {
+                result.innerHTML = '<p class="text-green-500">未檢測到明顯的詐騙關鍵詞，但仍請保持警惕。</p>';
+                suggestion.classList.add('hidden');
+                similarCases.classList.add('hidden');
+            }
+        }
+
+        function addKeyword() {
+            const newKeyword = document.getElementById('newKeyword').value.trim();
+            const category = document.getElementById('keywordCategory').value;
+            if (newKeyword && !fraudKeywords[category].includes(newKeyword)) {
+                fraudKeywords[category].push(newKeyword);
+                updateKeywordLists();
+                document.getElementById('newKeyword').value = '';
+                alert('新關鍵字已添加！');
+            } else {
+                alert('請輸入有效的新關鍵字！');
+            }
+        }
+
+        function submitFeedback() {
+            const feedback = document.getElementById('feedbackInput').value.trim();
+            const feedbackResult = document.getElementById('feedbackResult');
+            if (feedback) {
+                // 這裡應該有一個發送反饋到伺服器的函數
+                feedbackResult.innerHTML = '感謝您的反饋！<br>我們非常重視您的意見，這將幫助我們不斷改進系統。<br>您的反饋已經成功提交，我們會認真考慮並採取相應的行動。';
+                feedbackResult.style.color = 'green';
+                document.getElementById('feedbackInput').value = '';
+            } else {
+                feedbackResult.textContent = '請輸入有效的反饋內容。';
+                feedbackResult.style.color = 'red';
+            }
+        }
+
+        // 頁面切換功能
+        document.querySelectorAll('nav a').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
+                document.querySelector(link.getAttribute('href')).classList.add('active');
+            });
+        });
+
+        // 初始化關鍵字列表
+        updateKeywordLists();
+    </script>
+</body>
+</html>
